@@ -13,12 +13,13 @@ sys.path.insert(0, src_path)
 
 from PySide6.QtWidgets import QApplication
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QGuiApplication
 
 
 def main():
     """主函数"""
     # 启用高 DPI 支持
-    Qt.setHighDpiScaleFactorRoundingPolicy(
+    QGuiApplication.setHighDpiScaleFactorRoundingPolicy(
         Qt.HighDpiScaleFactorRoundingPolicy.PassThrough
     )
     
