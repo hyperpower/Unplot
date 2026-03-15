@@ -34,7 +34,7 @@ class NavBar(QToolBar):
         
         # QToolBar 默认设置
         self.setOrientation(Qt.Vertical)  # 垂直排列
-        self.setFixedWidth(60)
+        self.setFixedWidth(48)
         self.setMovable(False)  # 不可移动
         self.setFloatable(False)  # 不可浮动
         self._icon_size = QSize(32, 32)
@@ -79,7 +79,7 @@ class NavBar(QToolBar):
         
         btn.setToolTip(tooltip)
         # 按钮宽度与工具栏一致，高度 48px
-        btn.setFixedSize(60, 48)
+        btn.setFixedSize(48, 48)
         btn.setAutoRaise(True)
         
         # 设置只显示图标

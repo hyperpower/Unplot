@@ -4,10 +4,11 @@
 
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, 
-    QTreeWidget, QTreeWidgetItem, QTableWidget, 
-    QTableWidgetItem, QFrame, QSplitter, QHeaderView, QSizePolicy
+    QTableWidget, QTableWidgetItem, QFrame, QSplitter, QHeaderView, QSizePolicy
 )
 from PySide6.QtCore import Qt
+
+from .work_tree import WorkTreeWidget
 
 
 class DataPanel(QFrame):
@@ -57,14 +58,7 @@ class DataPanel(QFrame):
         # title_label.setFixedHeight(36)
         
         # 树状控件
-        tree = QTreeWidget()
-        tree.setHeaderLabels(["名称", "类型"])
-        tree.setColumnCount(2)
-        tree.header().setSectionResizeMode(0, QHeaderView.Stretch)
-        tree.header().setSectionResizeMode(1, QHeaderView.ResizeToContents)
-        
-        # 添加示例数据
-        self._populate_tree(tree)
+        tree = WorkTreeWidget()
         
         # 容器
         container = QWidget()
@@ -74,8 +68,8 @@ class DataPanel(QFrame):
         layout.addWidget(title_label)
         layout.addWidget(tree)
         
-        # 设置容器宽度策略为撑满父控件
-        container.setSizePolicy(container.sizePolicy().horizontalPolicy(),
+        # 设置容器尺寸策略为撑满父控件（水平和垂直方向都扩展）
+        container.setSizePolicy(QSizePolicy.Expanding,
                                QSizePolicy.Expanding)
         
         return container
@@ -89,6 +83,7 @@ class DataPanel(QFrame):
         # 属性表格
         table = QTableWidget()
         table.setColumnCount(2)
+        table.setFrameShape(QFrame.NoFrame)
         table.setHorizontalHeaderLabels(["属性", "值"])
         header = table.horizontalHeader()
         header.setSectionResizeMode(0, QHeaderView.Stretch)
@@ -106,26 +101,11 @@ class DataPanel(QFrame):
         layout.addWidget(title_label)
         layout.addWidget(table)
         
-        # 设置容器宽度策略为撑满父控件
-        container.setSizePolicy(container.sizePolicy().horizontalPolicy(),
+        # 设置容器尺寸策略为撑满父控件（水平和垂直方向都扩展）
+        container.setSizePolicy(QSizePolicy.Expanding,
                                QSizePolicy.Expanding)
         
         return container
-        
-    def _populate_tree(self, tree: QTreeWidget):
-        """填充树状结构示例数据"""
-        # 根节点
-        root1 = QTreeWidgetItem(tree, ["图层 1", "Curve"])
-        root1.setExpanded(True)
-        QTreeWidgetItem(root1, ["数据点", "Points"])
-        QTreeWidgetItem(root1, ["坐标轴", "Axis"])
-        
-        root2 = QTreeWidgetItem(tree, ["图层 2", "Curve"])
-        QTreeWidgetItem(root2, ["数据点", "Points"])
-        QTreeWidgetItem(root2, ["坐标轴", "Axis"])
-        
-        root3 = QTreeWidgetItem(tree, ["图层 3", "Scatter"])
-        QTreeWidgetItem(root3, ["数据点", "Points"])
         
     def _populate_table(self, table: QTableWidget):
         """填充属性表示例数据"""
