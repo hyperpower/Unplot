@@ -6,7 +6,7 @@ import numpy as np
 from typing import List, Tuple, Optional
 from dataclasses import dataclass
 
-from .image_loader import ImageLoader
+from .image_process import ImageLoader
 from .coordinate_mapper import CoordinateMapper
 from .point_detector import PointDetector, DetectedPoint
 

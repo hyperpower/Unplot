@@ -2,12 +2,10 @@
 导航栏模块
 """
 
-from PySide6.QtWidgets import QToolBar, QToolButton, QWidgetAction, QSpacerItem, QWidget, QSizePolicy
-from PySide6.QtCore import Signal, Qt, QSize, QByteArray, QEvent
-from PySide6.QtGui import QIcon, QPixmap, QPainter, QColor, QPalette
-from PySide6.QtSvg import QSvgRenderer
+from PySide6.QtWidgets import QToolBar, QToolButton, QWidgetAction, QWidget, QSizePolicy
+from PySide6.QtCore import Signal, Qt, QSize, QEvent
 
-from pathlib import Path
+from .icon_utils import get_icon_path, set_button_icon
 
 
 class NavBar(QToolBar):
@@ -28,10 +26,7 @@ class NavBar(QToolBar):
     
     def __init__(self, parent=None):
         super().__init__(parent)
-        
-        # 获取图标目录路径
-        self._icon_dir = Path(__file__).parent.parent.parent / "assets" / "icons"
-        
+
         # QToolBar 默认设置
         self.setOrientation(Qt.Vertical)  # 垂直排列
         self.setFixedWidth(48)
@@ -70,12 +65,10 @@ class NavBar(QToolBar):
     def _add_button(self, icon_name: str, tooltip: str) -> QToolButton:
         """添加按钮到工具栏"""
         btn = QToolButton()
-        
-        # 加载图标
-        icon_path = self._icon_dir / f"{icon_name}.svg"
+
+        icon_path = get_icon_path(icon_name)
         if icon_path.exists():
-            self._set_button_icon(btn, icon_path)
-            btn.setIconSize(self._icon_size)
+            set_button_icon(btn, icon_path, self._icon_size)
         
         btn.setToolTip(tooltip)
         # 按钮宽度与工具栏一致，高度 48px
@@ -93,43 +86,12 @@ class NavBar(QToolBar):
         
         return btn
 
-    def _current_icon_color(self) -> QColor:
-        """获取当前主题下图标颜色"""
-        return self.palette().color(QPalette.ButtonText)
-
-    def _set_button_icon(self, btn: QToolButton, icon_path: Path):
-        """根据当前主题颜色渲染 SVG 图标"""
-        try:
-            svg_text = icon_path.read_text(encoding="utf-8")
-        except OSError:
-            btn.setIcon(QIcon(str(icon_path)))
-            return
-
-        color = self._current_icon_color()
-        svg_text = svg_text.replace("currentColor", color.name())
-        renderer = QSvgRenderer(QByteArray(svg_text.encode("utf-8")))
-        dpr = self.devicePixelRatioF()
-        pixel_size = QSize(
-            max(1, int(self._icon_size.width() * dpr)),
-            max(1, int(self._icon_size.height() * dpr)),
-        )
-        pixmap = QPixmap(pixel_size)
-        pixmap.fill(Qt.transparent)
-
-        painter = QPainter(pixmap)
-        painter.setRenderHint(QPainter.Antialiasing)
-        renderer.render(painter)
-        painter.end()
-
-        pixmap.setDevicePixelRatio(dpr)
-        btn.setIcon(QIcon(pixmap))
-
     def _update_icons(self):
         """主题变化时更新所有按钮图标"""
         for icon_name, btn in self._buttons.items():
-            icon_path = self._icon_dir / f"{icon_name}.svg"
+            icon_path = get_icon_path(icon_name)
             if icon_path.exists():
-                self._set_button_icon(btn, icon_path)
+                set_button_icon(btn, icon_path, self._icon_size)
 
     def changeEvent(self, event):
         """处理主题/调色板变化"""

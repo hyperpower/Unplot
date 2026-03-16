@@ -23,7 +23,6 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from core.data_extractor import DataExtractor, DataPoint
-from core.image_loader import ImageLoader
 
 # 导入新的 UI 组件
 from .nav_bar import NavBar

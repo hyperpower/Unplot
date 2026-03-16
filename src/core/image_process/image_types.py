@@ -25,16 +25,6 @@ class NormalizationResult:
 
 
 @dataclass
-class ImageTransformResult:
-    """通用图像变换结果"""
-
-    image: np.ndarray
-    success: bool
-    confidence: float = 0.0
-    metadata: Dict[str, Any] = field(default_factory=dict)
-
-
-@dataclass
 class OrientationResult:
     """方向检测与校正结果"""
 

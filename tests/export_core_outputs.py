@@ -9,14 +9,16 @@ from pathlib import Path
 # 添加 src 目录到路径
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from core.image_loader import ImageLoader
-from core.image_writer import ImageWriter
-from core.image_normalizer import ImageNormalizer
-from core.layout_detector import LayoutDetector
-from core.orientation_detector import OrientationDetector
-from core.page_dewarper import PageDewarper
-from core.perspective_corrector import PerspectiveCorrector
-from core.roi_extractor import ROIExtractor
+from core.image_process import (
+    ImageLoader,
+    ImageNormalizer,
+    ImageWriter,
+    LayoutDetector,
+    OrientationDetector,
+    PageDewarper,
+    PerspectiveCorrector,
+    ROIExtractor,
+)
 
 INPUT_DIR = Path(__file__).parent / "images"
 OUTPUT_DIR = Path(__file__).parent / "output"

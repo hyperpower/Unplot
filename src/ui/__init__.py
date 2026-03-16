@@ -7,6 +7,7 @@ from .nav_bar import NavBar
 from .data_panel import DataPanel
 from .center_panel import CenterPanel, ImageCanvas, CenterToolBar
 from .right_panel import RightPanel
+from .icon_utils import get_icon_path, set_button_icon
 from .settings_sections import (
     SettingsSection,
     AxisSettingsSection,
@@ -22,6 +23,8 @@ __all__ = [
     "ImageCanvas",
     "CenterToolBar",
     "RightPanel",
+    "get_icon_path",
+    "set_button_icon",
     "SettingsSection",
     "AxisSettingsSection",
     "CurveSettingsSection",

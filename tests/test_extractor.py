@@ -10,7 +10,7 @@ from pathlib import Path
 # 添加 src 目录到路径
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from core.image_loader import ImageLoader
+from core.image_process import ImageLoader
 from core.coordinate_mapper import CoordinateMapper
 from core.point_detector import PointDetector
 from core.data_extractor import DataExtractor

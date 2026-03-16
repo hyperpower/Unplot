@@ -2,11 +2,19 @@
 核心功能模块
 """
 
-from .image_loader import ImageLoader
-from .image_writer import ImageWriter
-from .image_types import (
+from .image_process import (
+    ImageLoader,
+    ImageNormalizer,
+    ImageProcessStep,
+    ImageWriter,
+    LayoutDetector,
+    OrientationDetector,
+    PageDewarper,
+    PerspectiveCorrector,
+    ROIExtractor,
+)
+from .image_process.image_types import (
     DewarpResult,
-    ImageTransformResult,
     LayoutDetectionResult,
     LayoutRegion,
     NormalizationResult,
@@ -14,12 +22,14 @@ from .image_types import (
     PerspectiveCorrectionResult,
     ROIExtractionResult,
 )
-from .image_normalizer import ImageNormalizer
-from .orientation_detector import OrientationDetector
-from .perspective_corrector import PerspectiveCorrector
-from .layout_detector import LayoutDetector
-from .roi_extractor import ROIExtractor
-from .page_dewarper import PageDewarper
+from .pipeline import (
+    Pipeline,
+    PipelineContext,
+    PipelineExecutionRecord,
+    PipelineResult,
+    PipelineStep,
+    StepRegistry,
+)
 
 # 兼容旧模块导出，后续可逐步移除
 from .data_extractor import DataExtractor
@@ -29,8 +39,8 @@ from .point_detector import PointDetector
 __all__ = [
     "ImageLoader",
     "ImageWriter",
+    "ImageProcessStep",
     "NormalizationResult",
-    "ImageTransformResult",
     "OrientationResult",
     "PerspectiveCorrectionResult",
     "LayoutRegion",
@@ -43,6 +53,12 @@ __all__ = [
     "LayoutDetector",
     "ROIExtractor",
     "PageDewarper",
+    "Pipeline",
+    "PipelineContext",
+    "PipelineExecutionRecord",
+    "PipelineResult",
+    "PipelineStep",
+    "StepRegistry",
     "DataExtractor",
     "CoordinateMapper",
     "PointDetector",
