@@ -21,6 +21,7 @@ class WorkTreeWidget(QTreeWidget):
     """图像处理工作树控件。"""
 
     STATUS_COLUMN_WIDTH = 32
+    TREE_INDENTATION = 10
     STATUS_ICON_SIZE = QSize(16, 16)
     STATUS_TOOLTIPS = {
         "init": "初始化",
@@ -55,6 +56,7 @@ class WorkTreeWidget(QTreeWidget):
         """初始化 UI。"""
         self.setColumnCount(2)
         self.setHeaderLabels(["名称", "状态"])
+        self.setIndentation(self.TREE_INDENTATION)
         self.setFrameShape(QFrame.NoFrame)
         self.setContextMenuPolicy(Qt.CustomContextMenu)
         self.customContextMenuRequested.connect(self._show_context_menu)
@@ -63,6 +65,10 @@ class WorkTreeWidget(QTreeWidget):
         self.header().setSectionResizeMode(0, QHeaderView.Stretch)
         self.header().setSectionResizeMode(1, QHeaderView.Fixed)
         self.header().resizeSection(1, self.STATUS_COLUMN_WIDTH)
+
+    def set_tree_indentation(self, indentation: int) -> None:
+        """设置每一级的缩进像素"""
+        self.setIndentation(max(0, indentation))
 
     def _populate_tree(self):
         """初始化 image process 树结构。"""
