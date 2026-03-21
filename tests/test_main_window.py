@@ -213,4 +213,12 @@ class TestMainWindow:
         main_window.close()
         assert main_window.isVisible() is False
 
+    def test_load_image_from_path(self, main_window):
+        """测试通过 ImageLoader 加载图像并显示到画布"""
+        image_path = Path(__file__).resolve().parent / "images" / "image_001.jpg"
+
+        assert image_path.is_file()
+        assert main_window.load_image_from_path(image_path) is True
+        assert main_window._extractor.image_loader.image_path == str(image_path)
+        assert main_window.canvas._image is not None
 

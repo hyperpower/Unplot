@@ -1,125 +1,157 @@
 """
 图像画布模块
+
+使用matplotlib作为backend实现图像显示和交互功能。
 """
 
 import numpy as np
-from PySide6.QtWidgets import QFrame
-from PySide6.QtCore import Signal, QRect, QPointF, Qt
-from PySide6.QtGui import QPainter, QImage, QPen, QBrush
+from PySide6.QtWidgets import QWidget, QVBoxLayout
+from PySide6.QtCore import Signal
+
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.figure import Figure
+import matplotlib.pyplot as plt
 
 
-class ImageCanvas(QFrame):
+class ImageCanvas(QWidget):
     """图像画布组件
     
-    用于显示图像并处理用户的鼠标交互。
+    使用matplotlib作为backend，用于显示图像并处理用户的鼠标交互。
     """
     
     point_clicked = Signal(float, float)  # 信号：用户点击位置（像素坐标）
     
     def __init__(self, parent=None):
         super().__init__(parent)
+        
+        # 初始化matplotlib图表
+        self.figure = Figure(figsize=(6, 4), dpi=100)
+        self.canvas = FigureCanvas(self.figure)
+        self.ax = self.figure.add_subplot(111)
+        
+        # 布局设置
+        layout = QVBoxLayout()
+        layout.addWidget(self.canvas)
+        layout.setContentsMargins(0, 0, 0, 0)
+        self.setLayout(layout)
+        
+        # 数据存储
         self._image = None
         self._points: list = []  # 存储已添加的点
         self._axis_points: list = []  # 存储坐标轴参考点
         
-        self.setFrameStyle(QFrame.Box | QFrame.Plain)
-        self.setLineWidth(2)
+        # 设置最小尺寸
         self.setMinimumSize(400, 300)
         
+        # 连接鼠标点击事件
+        self.canvas.mpl_connect('button_press_event', self._on_canvas_click)
+        
     def set_image(self, image: np.ndarray) -> None:
-        """设置要显示的图像"""
-        self._image = image
+        """设置要显示的图像
+        
+        Args:
+            image: numpy数组格式的图像 (H, W, C)
+        """
+        if image is None:
+            self.clear_image()
+            return
+            
+        self._image = np.copy(image)
         self._points.clear()
         self._axis_points.clear()
-        self.update()
+        self._render()
         
     def clear_image(self) -> None:
-        """清除图像"""
+        """清除图像和所有标记点"""
         self._image = None
         self._points.clear()
         self._axis_points.clear()
-        self.update()
+        
+        # 清空matplotlib轴
+        self.ax.clear()
+        self.ax.set_xticks([])
+        self.ax.set_yticks([])
+        self.canvas.draw_idle()
         
     def add_point(self, x: float, y: float) -> None:
-        """添加一个显示点"""
-        self._points.append((x, y))
-        self.update()
+        """添加一个显示点
+        
+        Args:
+            x: 点的x坐标（像素坐标）
+            y: 点的y坐标（像素坐标）
+        """
+        if self._image is not None:
+            self._points.append((x, y))
+            self._render()
         
     def clear_points(self) -> None:
         """清除所有数据点"""
         self._points.clear()
-        self.update()
+        if self._image is not None:
+            self._render()
         
     def set_axis_points(self, points: list) -> None:
-        """设置坐标轴参考点"""
-        self._axis_points = points
-        self.update()
+        """设置坐标轴参考点
         
-    def mousePressEvent(self, event):
-        """处理鼠标点击事件"""
+        Args:
+            points: 坐标轴参考点列表 [(x1, y1), (x2, y2), ...]
+        """
+        self._axis_points = points if points is not None else []
         if self._image is not None:
-            x = event.position().x()
-            y = event.position().y()
-            self.point_clicked.emit(x, y)
-            
-    def paintEvent(self, event):
-        """绘制事件"""
-        painter = QPainter(self)
-        painter.setRenderHint(QPainter.Antialiasing)
+            self._render()
         
-        # 绘制背景
-        painter.fillRect(self.rect(), Qt.white)
-        
-        if self._image is not None:
-            # 转换 numpy 数组为 QImage
-            h, w, ch = self._image.shape
-            bytes_per_line = ch * w
-            qimage = QImage(self._image.data, w, h, bytes_per_line, 
-                           QImage.Format_RGB888)
-            
-            # 缩放以适应画布
-            scaled_rect = self._get_scaled_rect(w, h)
-            painter.drawImage(scaled_rect, qimage)
-            
-            # 计算缩放比例
-            scale_x = scaled_rect.width() / w
-            scale_y = scaled_rect.height() / h
-            
-            # 绘制数据点
-            pen = QPen(Qt.red, 3)
-            pen.setCosmetic(True)
-            painter.setPen(pen)
-            painter.setBrush(QBrush(Qt.red))
-            
-            for px, py in self._points:
-                cx = scaled_rect.left() + px * scale_x
-                cy = scaled_rect.top() + py * scale_y
-                painter.drawEllipse(QPointF(cx, cy), 5, 5)
-            
-            # 绘制坐标轴参考点（蓝色）
-            pen.setColor(Qt.blue)
-            painter.setPen(pen)
-            painter.setBrush(QBrush(Qt.blue))
-            
-            for i, (px, py) in enumerate(self._axis_points):
-                cx = scaled_rect.left() + px * scale_x
-                cy = scaled_rect.top() + py * scale_y
-                painter.drawEllipse(QPointF(cx, cy), 7, 7)
+    def _on_canvas_click(self, event) -> None:
+        """处理matplotlib画布的点击事件"""
+        if event.inaxes == self.ax and self._image is not None:
+            if event.xdata is not None and event.ydata is not None:
+                self.point_clicked.emit(float(event.xdata), float(event.ydata))
                 
-    def _get_scaled_rect(self, img_w: int, img_h: int):
-        """计算图像缩放的矩形区域"""
-        canvas_w = self.width() - 20
-        canvas_h = self.height() - 20
+    def _render(self) -> None:
+        """重新渲染画布"""
+        self.ax.clear()
         
-        if canvas_w <= 0 or canvas_h <= 0:
-            return QRect(10, 10, 10, 10)
+        if self._image is None:
+            self.ax.set_xticks([])
+            self.ax.set_yticks([])
+            self.canvas.draw_idle()
+            return
         
-        scale = min(canvas_w / img_w, canvas_h / img_h)
+        # 显示图像
+        # 处理不同格式的图像
+        if len(self._image.shape) == 2:
+            # 灰度图
+            self.ax.imshow(self._image, cmap='gray')
+        elif len(self._image.shape) == 3:
+            if self._image.shape[2] == 3:
+                # RGB图
+                # 确保值在0-255范围内
+                img_display = self._image.astype(np.uint8) if self._image.dtype == np.uint8 else \
+                              (self._image * 255).astype(np.uint8)
+                self.ax.imshow(img_display)
+            elif self._image.shape[2] == 4:
+                # RGBA图
+                img_display = self._image.astype(np.uint8) if self._image.dtype == np.uint8 else \
+                              (self._image * 255).astype(np.uint8)
+                self.ax.imshow(img_display)
         
-        new_w = int(img_w * scale)
-        new_h = int(img_h * scale)
+        # 绘制数据点（红色）
+        if self._points:
+            points_array = np.array(self._points)
+            self.ax.plot(points_array[:, 0], points_array[:, 1], 'ro', 
+                        markersize=8, label='Data Points')
         
-        x = 10 + (canvas_w - new_w) // 2
-        y = 10 + (canvas_h - new_h) // 2
+        # 绘制坐标轴参考点（蓝色）
+        if self._axis_points:
+            axis_array = np.array(self._axis_points)
+            self.ax.plot(axis_array[:, 0], axis_array[:, 1], 'bs', 
+                        markersize=10, label='Axis Points')
         
-        return QRect(x, y, new_w, new_h)
+        # 设置坐标轴
+        self.ax.set_xlabel('X (pixels)')
+        self.ax.set_ylabel('Y (pixels)')
+        
+        if self._points or self._axis_points:
+            self.ax.legend(loc='upper right')
+        
+        self.figure.tight_layout()
+        self.canvas.draw_idle()

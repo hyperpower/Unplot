@@ -39,7 +39,7 @@ class MainWindow(QMainWindow):
     """主窗口类
     """
     
-    def __init__(self):
+    def __init__(self, *, auto_load_image: bool = False, image_path: str | Path | None = None):
         super().__init__()
         
         self._extractor = DataExtractor()
@@ -47,6 +47,7 @@ class MainWindow(QMainWindow):
         self._axis_step = 0  # 0: X1, 1: X2, 2: Y1, 3: Y2
         self._axis_values = {}
         self._data_panel_expanded = True
+        self._startup_image_path = image_path
         
         self._init_ui()
         self._setup_menu()
@@ -55,6 +56,9 @@ class MainWindow(QMainWindow):
         
         self.setWindowTitle("Unplot - 从图像提取数据")
         self.resize(1100, 700)
+
+        if auto_load_image:
+            self._load_startup_image()
         
     def _init_ui(self):
         """初始化 UI"""
@@ -226,12 +230,41 @@ class MainWindow(QMainWindow):
         )
         
         if file_path:
-            if self._extractor.load_image(file_path):
-                image = self._extractor.image_loader.image
-                self._center_panel.set_image(image)
-                self._statusbar.showMessage(f"已加载：{file_path}")
-            else:
-                QMessageBox.critical(self, "错误", "无法加载图像文件")
+            self.load_image_from_path(file_path)
+
+    def load_image_from_path(self, file_path: str | Path) -> bool:
+        """使用 ImageLoader 加载图像并显示到中心画布。"""
+        if self._extractor.load_image(str(file_path)):
+            image = self._extractor.image_loader.image
+            self._center_panel.set_image(image)
+            self._statusbar.showMessage(f"已加载：{file_path}")
+            return True
+
+        QMessageBox.critical(self, "错误", f"无法加载图像文件：{file_path}")
+        return False
+
+    def _load_startup_image(self) -> None:
+        """加载启动时的默认测试图像。"""
+        image_path = self._startup_image_path or self._resolve_default_image_path()
+        if image_path is None:
+            self._statusbar.showMessage("未找到默认测试图像")
+            return
+
+        self.load_image_from_path(image_path)
+
+    def _resolve_default_image_path(self) -> Path | None:
+        """解析默认测试图像路径。"""
+        repo_root = Path(__file__).resolve().parents[2]
+        image_dir = repo_root / "tests" / "images"
+
+        candidates = [
+            image_dir / "image_001.jpg",
+            image_dir / "image001.jpg",
+        ]
+        for candidate in candidates:
+            if candidate.is_file():
+                return candidate
+        return None
                 
     @Slot()
     def _start_calibration(self):

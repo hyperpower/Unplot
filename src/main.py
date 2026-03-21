@@ -6,6 +6,7 @@ Unplot - 从图像中提取数据点的 PySide6 应用程序
 
 import sys
 import os
+from pathlib import Path
 
 # 添加 src 目录到路径
 src_path = os.path.dirname(os.path.abspath(__file__))
@@ -33,7 +34,16 @@ def main():
     # 导入并创建主窗口
     from ui.main_window import MainWindow
     
-    window = MainWindow()
+    repo_root = Path(src_path).parent
+    default_image = repo_root / "tests" / "images" / "image_001.jpg"
+    if not default_image.is_file():
+        fallback_image = repo_root / "tests" / "images" / "image001.jpg"
+        default_image = fallback_image if fallback_image.is_file() else None
+
+    window = MainWindow(
+        auto_load_image=True,
+        image_path=default_image,
+    )
     window.show()
     
     sys.exit(app.exec())
