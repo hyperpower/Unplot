@@ -45,6 +45,7 @@ class ImageCanvas(QWidget):
         
         # 连接鼠标点击事件
         self.canvas.mpl_connect('button_press_event', self._on_canvas_click)
+        self.clear_image()
         
     def set_image(self, image: np.ndarray) -> None:
         """设置要显示的图像
@@ -89,6 +90,10 @@ class ImageCanvas(QWidget):
         self._points.clear()
         if self._image is not None:
             self._render()
+
+    def has_image(self) -> bool:
+        """返回当前是否已加载图像。"""
+        return self._image is not None
         
     def set_axis_points(self, points: list) -> None:
         """设置坐标轴参考点

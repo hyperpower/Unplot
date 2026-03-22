@@ -4,31 +4,27 @@
 
 import sys
 from pathlib import Path
-from typing import Optional, List
 
 from PySide6.QtWidgets import (
-    QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-    QMenuBar, QMenu, QToolBar, QStatusBar,
-    QSplitter, QTableWidget, QTableWidgetItem,
-    QPushButton, QLabel, QMessageBox, QFileDialog,
-    QApplication, QHeaderView, QFrame, QScrollArea,
+    QMainWindow, QWidget, QHBoxLayout,
+    QStatusBar, QSplitter, QMessageBox, QFileDialog,
     QInputDialog
 )
-from PySide6.QtCore import Qt, Signal, Slot
-from PySide6.QtGui import QAction, QIcon, QKeySequence
-
-import numpy as np
+from PySide6.QtCore import Qt, Slot
+from PySide6.QtGui import QAction, QKeySequence
 
 # 添加父目录到路径以便导入核心模块
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.data_extractor import DataExtractor, DataPoint
+from core.data_extractor import DataExtractor
+from core.pipeline import Pipeline
 
 # 导入新的 UI 组件
 from .nav_bar import NavBar
 from .data_panel import DataPanel
 from .center_panel import CenterPanel, ImageCanvas
 from .right_panel import RightPanel
+from .main_window_controller import MainWindowController
 from .settings_sections import (
     AxisSettingsSection,
     CurveSettingsSection,
@@ -43,15 +39,15 @@ class MainWindow(QMainWindow):
         super().__init__()
         
         self._extractor = DataExtractor()
-        self._is_setting_axis = False
-        self._axis_step = 0  # 0: X1, 1: X2, 2: Y1, 3: Y2
-        self._axis_values = {}
+        self._image_process_pipeline = self._create_image_process_pipeline()
         self._data_panel_expanded = True
         self._startup_image_path = image_path
         
         self._init_ui()
         self._setup_menu()
         self._setup_statusbar()
+        self._data_panel.set_pipeline(self._image_process_pipeline)
+        self._controller = self._create_controller()
         self._connect_signals()
         
         self.setWindowTitle("Unplot - 从图像提取数据")
@@ -125,6 +121,13 @@ class MainWindow(QMainWindow):
         panel.add_section("export", export_section)
         
         return panel
+
+    def _create_image_process_pipeline(self) -> Pipeline:
+        """创建默认图像处理 pipeline。"""
+        return Pipeline(
+            name="image process pipeline",
+            steps=[],
+        )
         
     def _setup_menu(self):
         """设置菜单栏"""
@@ -173,11 +176,25 @@ class MainWindow(QMainWindow):
         self._statusbar = QStatusBar()
         self.setStatusBar(self._statusbar)
         self._statusbar.showMessage("就绪")
+
+    def _create_controller(self) -> MainWindowController:
+        """创建主窗口控制器。"""
+        return MainWindowController(
+            self._extractor,
+            show_status=self._statusbar.showMessage,
+            show_warning=self._show_warning,
+            request_calibration_value=self._request_calibration_value,
+            set_axis_points=self._center_panel.canvas.set_axis_points,
+            add_canvas_point=self._center_panel.canvas.add_point,
+            has_image=self._center_panel.canvas.has_image,
+        )
         
     def _connect_signals(self):
         """连接信号和槽"""
         # 左侧导航栏信号
         self._nav_bar.toggle_data_panel.connect(self._toggle_data_panel)
+        self._data_panel.tree_widget.step_run_finished.connect(self._on_step_run_finished)
+        self._data_panel.property_description_changed.connect(self._show_property_description)
         
         # 中央面板信号
         self._center_panel.canvas_clicked.connect(self._on_canvas_clicked)
@@ -186,7 +203,7 @@ class MainWindow(QMainWindow):
         # 右侧设置区域信号
         axis_section = self._right_panel.get_section("axis")
         if axis_section:
-            axis_section.btn_calibrate.clicked.connect(self._start_calibration)
+            axis_section.btn_calibrate.clicked.connect(self._controller.start_calibration)
             
         export_section = self._right_panel.get_section("export")
         if export_section:
@@ -215,11 +232,24 @@ class MainWindow(QMainWindow):
     @Slot(float, float)
     def _on_canvas_clicked(self, x: float, y: float):
         """处理画布点击事件"""
-        if self._is_setting_axis:
-            self._handle_calibration_click(x, y)
+        self._controller.handle_canvas_click(x, y)
+
+    @Slot(str)
+    def _show_property_description(self, description: str) -> None:
+        """在状态栏中显示当前属性说明。"""
+        self._statusbar.showMessage(description or "就绪")
+
+    @Slot(object, object)
+    def _on_step_run_finished(self, step, context):
+        """处理工作树 step 执行成功后的 UI 刷新。"""
+        image = context.get("image") if context is not None else None
+        if image is not None:
+            self._center_panel.set_image(image)
+
+        if hasattr(step, "image_path") and getattr(step, "image_path"):
+            self._statusbar.showMessage(f"已执行 {step.name}：{step.image_path}")
         else:
-            # 添加数据点
-            self._add_data_point(x, y)
+            self._statusbar.showMessage(f"已执行 {step.name}")
             
     @Slot()
     def _open_image(self):
@@ -267,130 +297,11 @@ class MainWindow(QMainWindow):
         return None
                 
     @Slot()
-    def _start_calibration(self):
-        """开始坐标轴校准"""
-        # 获取当前图像
-        canvas = self._center_panel.canvas
-        if canvas._image is None:
-            QMessageBox.warning(self, "警告", "请先加载图像")
-            return
-            
-        self._is_setting_axis = True
-        self._axis_step = 0
-        self._axis_values = {}
-        canvas.set_axis_points([])
-        self._update_calibration_label()
-        self._statusbar.showMessage("请点击 X 轴最小值位置")
-        
-    def _update_calibration_label(self):
-        """更新校准状态标签"""
-        steps = ["X 轴最小值", "X 轴最大值", "Y 轴最小值", "Y 轴最大值"]
-        if self._axis_step < 4:
-            self._statusbar.showMessage(f"状态：请点击 {steps[self._axis_step]}")
-        else:
-            self._statusbar.showMessage("状态：已校准")
-            
-    def _handle_calibration_click(self, x: float, y: float):
-        """处理校准过程中的点击"""
-        steps = ["x1", "x2", "y1", "y2"]
-        current_step = steps[self._axis_step]
-        
-        # 存储像素坐标
-        self._axis_values[f"{current_step}_pixel"] = x
-        
-        # 添加点到画布显示
-        points = self._center_panel.canvas._axis_points
-        points.append((x, y))
-        self._center_panel.canvas.set_axis_points(points)
-        
-        # 请求用户输入数据值
-        if self._axis_step == 0:  # X1
-            value, ok = QInputDialog.getDouble(
-                self, "X 轴最小值", "请输入 X 轴最小值对应的数据值:", 0.0
-            )
-            if ok:
-                self._axis_values["x1_data"] = value
-                self._axis_step += 1
-                self._update_calibration_label()
-            else:
-                self._cancel_calibration()
-                return
-                
-        elif self._axis_step == 1:  # X2
-            value, ok = QInputDialog.getDouble(
-                self, "X 轴最大值", "请输入 X 轴最大值对应的数据值:", 100.0
-            )
-            if ok:
-                self._axis_values["x2_data"] = value
-                self._axis_step += 1
-                self._update_calibration_label()
-            else:
-                self._cancel_calibration()
-                return
-                
-        elif self._axis_step == 2:  # Y1
-            value, ok = QInputDialog.getDouble(
-                self, "Y 轴最小值", "请输入 Y 轴最小值对应的数据值:", "0"
-            )
-            if ok:
-                self._axis_values["y1_data"] = value
-                self._axis_step += 1
-                self._update_calibration_label()
-            else:
-                self._cancel_calibration()
-                return
-                
-        elif self._axis_step == 3:  # Y2
-            value, ok = QInputDialog.getDouble(
-                self, "Y 轴最大值", "请输入 Y 轴最大值对应的数据值:", 100.0
-            )
-            if ok:
-                self._axis_values["y2_data"] = value
-                self._finish_calibration()
-            else:
-                self._cancel_calibration()
-                return
-    
-    def _cancel_calibration(self):
-        """取消校准"""
-        self._is_setting_axis = False
-        self._axis_step = 0
-        self._axis_values = {}
-        self._center_panel.canvas.set_axis_points([])
-        self._statusbar.showMessage("校准已取消")
-        
-    def _finish_calibration(self):
-        """完成校准"""
-        self._extractor.set_axis_calibration(
-            self._axis_values["x1_pixel"], self._axis_values["x1_data"],
-            self._axis_values["x2_pixel"], self._axis_values["x2_data"],
-            self._axis_values["y1_pixel"], self._axis_values["y1_data"],
-            self._axis_values["y2_pixel"], self._axis_values["y2_data"]
-        )
-        
-        self._is_setting_axis = False
-        self._axis_step = 0
-        self._center_panel.canvas.set_axis_points([])
-        self._statusbar.showMessage("坐标轴校准完成")
-        
-    def _add_data_point(self, x: float, y: float):
-        """添加数据点"""
-        if not self._extractor.coordinate_mapper.is_configured():
-            QMessageBox.warning(self, "警告", "请先设置坐标轴")
-            return
-            
-        try:
-            point = self._extractor.add_point(x, y)
-            self._center_panel.canvas.add_point(x, y)
-            self._statusbar.showMessage(f"已添加点：X={point.x_pixel:.2f}, Y={point.y_pixel:.2f}")
-        except ValueError as e:
-            QMessageBox.warning(self, "警告", str(e))
-            
-    @Slot()
     def _clear_points(self):
         """清除所有数据点"""
         self._extractor.clear_points()
         self._center_panel.canvas.clear_points()
+        self._controller.clear_calibration_overlay()
         self._statusbar.showMessage("已清除所有数据点")
         
     @Slot()
@@ -428,6 +339,22 @@ class MainWindow(QMainWindow):
             "版本：0.2.0\n"
             "使用 PySide6 开发"
         )
+
+    def _show_warning(self, title: str, message: str) -> None:
+        """显示警告对话框。"""
+        QMessageBox.warning(self, title, message)
+
+    def _request_calibration_value(
+        self,
+        title: str,
+        prompt: str,
+        default: float,
+    ) -> float | None:
+        """弹出输入框获取标定值。"""
+        value, ok = QInputDialog.getDouble(self, title, prompt, default)
+        if not ok:
+            return None
+        return value
         
     # 属性访问器
     @property

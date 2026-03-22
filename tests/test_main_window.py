@@ -10,8 +10,9 @@ from pathlib import Path
 # 添加 src 目录到路径
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from PySide6.QtWidgets import QApplication, QMenu, QToolBar
+from PySide6.QtWidgets import QApplication, QAbstractItemView, QMenu, QToolBar
 from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QHeaderView
 
 from ui.main_window import MainWindow, ImageCanvas
 
@@ -143,8 +144,8 @@ class TestMainWindow:
         """测试初始化"""
         assert main_window is not None
         assert main_window._extractor is not None
-        assert main_window._is_setting_axis is False
-        assert main_window._axis_step == 0
+        assert main_window._controller is not None
+        assert main_window._image_process_pipeline is not None
         
     def test_window_title(self, main_window):
         """测试窗口标题"""
@@ -169,6 +170,8 @@ class TestMainWindow:
     def test_data_panel_exists(self, main_window):
         """测试数据面板存在"""
         assert main_window.data_panel is not None
+        assert main_window.data_panel.tree_widget is not None
+        assert main_window.data_panel.prop_widget is not None
         
     def test_nav_bar_exists(self, main_window):
         """测试导航栏存在"""
@@ -222,3 +225,59 @@ class TestMainWindow:
         assert main_window._extractor.image_loader.image_path == str(image_path)
         assert main_window.canvas._image is not None
 
+    def test_image_process_pipeline_shown_in_work_tree(self, main_window):
+        """测试工作树默认展示真实 pipeline。"""
+        tree = main_window.data_panel.tree_widget
+        root_item = tree.root_item
+
+        assert root_item is not None
+        assert root_item.text(0) == "image process pipeline"
+        assert tree.get_step_names() == []
+
+    def test_property_widget_shows_pipeline_properties(self, main_window):
+        """测试属性面板默认显示 pipeline 属性。"""
+        table = main_window.data_panel.prop_widget
+
+        assert table.item(0, 0).text() == "类型"
+        assert table.item(0, 1).text() == "Pipeline"
+        assert table.item(1, 0).text() == "名称"
+        assert table.item(1, 1).text() == "image process pipeline"
+
+    def test_property_widget_columns_are_interactive(self, main_window):
+        """测试属性表格使用双列联动拖拽配置。"""
+        table = main_window.data_panel.prop_widget
+        header = table.horizontalHeader()
+
+        assert header is not None
+        assert table.selectionBehavior() == QAbstractItemView.SelectRows
+        assert table.selectionMode() == QAbstractItemView.SingleSelection
+        assert header.sectionsClickable() is False
+        assert header.highlightSections() is False
+        assert header.minimumSectionSize() == 10
+        assert header.stretchLastSection() is False
+        assert header.sectionResizeMode(0) == QHeaderView.Interactive
+        assert header.sectionResizeMode(1) == QHeaderView.Interactive
+        assert table.columnWidth(0) >= 10
+        assert table.columnWidth(1) >= 10
+
+    def test_property_widget_columns_keep_total_width_and_minimum(self, main_window):
+        """测试两列总宽联动且最小宽度受限。"""
+        panel = main_window.data_panel
+
+        panel._apply_property_column_widths(5, total_width=80)
+        assert panel.prop_widget.columnWidth(0) == 10
+        assert panel.prop_widget.columnWidth(1) == 70
+
+        panel._apply_property_column_widths(75, total_width=80)
+        assert panel.prop_widget.columnWidth(0) == 70
+        assert panel.prop_widget.columnWidth(1) == 10
+
+    def test_canvas_starts_blank_before_loading_image(self, main_window):
+        """测试未加载图像前画布保持空白状态。"""
+        assert main_window.canvas._image is None
+        assert main_window.canvas.has_image() is False
+
+    def test_property_description_updates_status_bar(self, main_window):
+        """测试点击属性行描述时会同步到状态栏。"""
+        main_window.data_panel.property_description_changed.emit("示例属性说明")
+        assert main_window._statusbar.currentMessage() == "示例属性说明"

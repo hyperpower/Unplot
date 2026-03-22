@@ -43,6 +43,17 @@ def loaded_image(image_path: Path):
 class TestImageStepRun:
     """测试各个 image step 的 run(context) 路径。"""
 
+    def test_image_loader_describes_contract(self):
+        step = ImageLoader()
+
+        input_names = [port.name for port in step.describe_inputs()]
+        output_names = [port.name for port in step.describe_outputs()]
+        config_names = [field.name for field in step.describe_config()]
+
+        assert input_names == ["path"]
+        assert output_names == ["image"]
+        assert config_names == ["status", "width", "height"]
+
     def test_image_loader_run_sets_context(self, image_path: Path):
         step = ImageLoader(config={"path": str(image_path)})
         context = PipelineContext()
@@ -50,7 +61,26 @@ class TestImageStepRun:
         step.run(context)
 
         assert context.get("image") is not None
-        assert context.get("loaded_image_path") == str(image_path)
+        assert step.image_path == str(image_path)
+
+    def test_image_loader_run_requires_configured_path(self):
+        step = ImageLoader()
+        context = PipelineContext()
+
+        with pytest.raises(ValueError, match="缺少图像路径"):
+            step.run(context)
+
+    def test_image_loader_is_ready_requires_existing_readable_path(self, image_path: Path):
+        assert ImageLoader().is_ready() is False
+        assert ImageLoader(config={"path": "tests/images/missing.jpg"}).is_ready() is False
+        assert ImageLoader(config={"path": str(image_path)}).is_ready() is True
+
+    def test_image_loader_inputs_check_reports_missing_or_invalid_path(self, image_path: Path):
+        assert ImageLoader().inputs_check() == ["请输入图像文件路径"]
+        assert ImageLoader(config={"path": "tests/images/missing.jpg"}).inputs_check() == [
+            "图像文件不存在: tests/images/missing.jpg"
+        ]
+        assert ImageLoader(config={"path": str(image_path)}).inputs_check() == []
 
     def test_image_normalizer_run_sets_result(self, loaded_image):
         step = ImageNormalizer()

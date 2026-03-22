@@ -4,12 +4,38 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Any
 
 import cv2
 import numpy as np
 
 from ..pipeline import PipelineContext, PipelineStep
+
+
+@dataclass(frozen=True)
+class StepPort:
+    """Step 输入/输出端口的描述。"""
+
+    name: str
+    direction: str
+    required: bool = True
+    editable: bool = False
+    editor: str = "text"
+    editor_options: dict[str, Any] | None = None
+    description: str = ""
+
+
+@dataclass(frozen=True)
+class StepConfigField:
+    """Step 配置项的描述。"""
+
+    name: str
+    default: Any = None
+    editable: bool = False
+    editor: str = "text"
+    editor_options: dict[str, Any] | None = None
+    description: str = ""
 
 
 class ImageProcessStep(PipelineStep):
@@ -27,6 +53,22 @@ class ImageProcessStep(PipelineStep):
             enabled=enabled,
             config=dict(config or {}),
         )
+
+    def describe_inputs(self) -> list[StepPort]:
+        """返回 step 的输入描述。"""
+        return []
+
+    def describe_outputs(self) -> list[StepPort]:
+        """返回 step 的输出描述。"""
+        return []
+
+    def describe_config(self) -> list[StepConfigField]:
+        """返回 step 的配置描述。"""
+        return []
+
+    def on_config_changed(self, key: str, value: Any) -> None:
+        """当配置被 UI 修改后，同步运行时缓存。"""
+        del key, value
 
     def _get_config_value(self, key: str, default: Any = None) -> Any:
         """读取配置值。"""

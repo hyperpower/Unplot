@@ -10,7 +10,7 @@ import cv2
 import numpy as np
 
 from ..pipeline import PipelineContext, StepRegistry
-from .base import ImageProcessStep
+from .base import ImageProcessStep, StepConfigField
 from .image_types import NormalizationResult
 
 
@@ -95,6 +95,41 @@ class ImageNormalizer(ImageProcessStep):
         if kernel_size % 2 == 0:
             return kernel_size + 1
         return kernel_size
+
+    def describe_config(self) -> list[StepConfigField]:
+        return [
+            StepConfigField(
+                name="max_dimension",
+                default=self.max_dimension,
+                editable=True,
+                editor="number",
+                editor_options={"min": 1, "step": 1},
+                description="归一化时允许的图像最长边尺寸。",
+            ),
+            StepConfigField(
+                name="use_clahe",
+                default=self.use_clahe,
+                editable=True,
+                editor="bool",
+                description="是否启用 CLAHE 对比度增强。",
+            ),
+            StepConfigField(
+                name="blur_kernel_size",
+                default=self.blur_kernel_size,
+                editable=True,
+                editor="number",
+                editor_options={"min": 1, "step": 1},
+                description="高斯模糊核大小，偶数会在运行时自动调整为奇数。",
+            ),
+        ]
+
+    def on_config_changed(self, key: str, value) -> None:
+        if key == "max_dimension":
+            self.max_dimension = int(value)
+        elif key == "use_clahe":
+            self.use_clahe = bool(value)
+        elif key == "blur_kernel_size":
+            self.blur_kernel_size = int(value)
 
     def run(self, context: PipelineContext) -> None:
         image = self._require_context_value(

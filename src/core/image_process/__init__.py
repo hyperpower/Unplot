@@ -2,7 +2,7 @@
 图像处理子模块。
 """
 
-from .base import ImageProcessStep
+from .base import ImageProcessStep, StepConfigField, StepPort
 from .image_loader import ImageLoader
 from .image_normalizer import ImageNormalizer
 from .image_types import (
@@ -23,6 +23,8 @@ from .roi_extractor import ROIExtractor
 
 __all__ = [
     "ImageProcessStep",
+    "StepPort",
+    "StepConfigField",
     "ImageLoader",
     "ImageNormalizer",
     "ImageWriter",
